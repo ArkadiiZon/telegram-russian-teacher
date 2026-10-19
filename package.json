@@ -16,7 +16,8 @@
     "db:remote": "wrangler d1 migrations apply DB --remote",
     "admin": "node scripts/admin.mjs",
     "webhook": "node scripts/webhook.mjs",
-    "secrets:sync": "node scripts/sync-secrets.mjs"
+    "secrets:sync": "node scripts/sync-secrets.mjs",
+    "infisical": "node scripts/infisical.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

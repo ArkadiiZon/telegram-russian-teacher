@@ -1,0 +1,6 @@
+{
+  "siteUrl": "http://ops-infisical.arkadizon.es",
+  "projectId": "f51da42d-632d-4516-9a98-3fb013479426",
+  "environment": "prod",
+  "secretPath": "/"
+}

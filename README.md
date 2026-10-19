@@ -110,6 +110,34 @@ infisical run --domain=https://YOUR_INFISICAL_HOST --projectId=YOUR_PROJECT_ID -
 
 Infisical remains the source of truth. Worker secrets are runtime copies and must be synchronized again after rotation. Public Cloudflare Workers cannot directly reach your private Tailscale network in this setup; the ops machine performs the sync. Do not expose Infisical publicly just for the bot.
 
+### This project's direct Infisical connection
+
+The non-secret project coordinates are saved in `config/infisical.json`: project
+`f51da42d-632d-4516-9a98-3fb013479426`, environment `prod`, root folder `/`.
+The direct API helper needs no additional CLI installation.
+
+Create a dedicated **Viewer** machine identity for this project with **Universal Auth**.
+Restrict it to `prod` and `/` if your instance supports environment/path policies.
+Keep its client secret out of the repository and out of chat. On the deployment Mac,
+create `.local/infisical-credentials.json` with this structure and permissions `600`:
+
+```json
+{"clientId":"YOUR_MACHINE_CLIENT_ID","clientSecret":"YOUR_MACHINE_CLIENT_SECRET"}
+```
+
+```sh
+npm run infisical -- check
+npm run infisical -- sync
+npm run infisical -- webhook
+```
+
+The helper authenticates to the configured private Infisical endpoint, reads this
+project/environment/folder only, validates the six app settings, and passes them
+in memory to the existing deployment scripts. It does not print their values or
+persist copies. `TELEGRAM_GROUP_ID` may also be present for setup; the Worker sync
+still accepts only the six runtime settings. Authentication credentials are never
+uploaded into the Worker. Tailscale and Wrangler login must be active on this Mac.
+
 ### Register the Telegram group
 
 1. Add the bot to your group. Allow it to send messages and polls. Making it an administrator makes Telegram membership/admin checks reliable. Privacy mode can stay enabled: only commands and the bot's poll answers are needed.
