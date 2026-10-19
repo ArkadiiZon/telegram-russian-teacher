@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local development. Never commit real secrets.
+TELEGRAM_BOT_TOKEN=replace-with-BotFather-token
+TELEGRAM_WEBHOOK_SECRET=replace-with-random-64-character-hex
+OAUTH_SIGNING_SECRET=replace-with-another-random-64-character-hex
+OAUTH_CLIENT_ID=russian-teacher-chatgpt
+# Use the exact callback URI shown by your ChatGPT MCP connection settings.
+OAUTH_REDIRECT_URIS=["http://localhost:8989/callback"]
+PUBLIC_BASE_URL=http://localhost:8787
