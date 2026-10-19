@@ -29,7 +29,7 @@ async function boundedRequest(request: Request) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const base = env.PUBLIC_BASE_URL?.replace(/\/$/, '') ?? ''; 
+    const base = env.PUBLIC_BASE_URL?.replace(/\/$/, '') ?? '';
     try {
       if (url.pathname === '/health' && request.method === 'GET') return Response.json({ ok: true, service: 'russian-teacher' });
       // Authenticate webhook before reading its body or booting Nest.
