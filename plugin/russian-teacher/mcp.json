@@ -1,0 +1,38 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "russian-teacher": {
+      "type": "streamable-http",
+      "url": "https://telegram-russian-teacher.arkadizon.workers.dev/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "provided",
+              "clientId": "russian-teacher-chatgpt",
+              "tokenEndpointAuthMethod": "none"
+            },
+            "baseScopes": [
+              "config:read",
+              "config:write",
+              "lessons:read",
+              "lessons:write",
+              "lessons:post",
+              "progress:read"
+            ],
+            "defaultScopes": [
+              "config:read",
+              "config:write",
+              "lessons:read",
+              "lessons:write",
+              "lessons:post",
+              "progress:read"
+            ],
+            "oidcEnabled": false
+          }
+        }
+      }
+    }
+  }
+}

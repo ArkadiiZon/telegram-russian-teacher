@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "russian-teacher",
+  "version": "0.1.0",
+  "description": "Teach Russian to Spanish-speaking friends through scoped Telegram lessons, native quizzes, and progress tracking.",
+  "author": {
+    "name": "Arkadii Zon"
+  },
+  "repository": "https://github.com/ArkadiiZon/telegram-russian-teacher",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Russian Teacher",
+        "shortDescription": "Russian lessons in Spanish",
+        "longDescription": "Create Russian lessons with Spanish explanations, pronunciation help and examples. Schedule lessons and Telegram quiz polls in your authorized group and review quiz progress. The backend stores and publishes ChatGPT-authored content; it does not call a model API.",
+        "developerName": "Arkadii Zon",
+        "category": "Education",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Prepara la próxima lección de ruso para mis amigos hispanohablantes.",
+          "Revisa el progreso de nuestro grupo y prepara un quiz de ruso."
+        ]
+      }
+    }
+  }
+}
