@@ -38,11 +38,12 @@ The runner calls the scoped Cloudflare delivery endpoint once per minute.
 
 Its private `.local/scheduler.env` contains only `PUBLIC_BASE_URL`, `REDIS_URL`,
 and `SCHEDULER_GROUP_TOKEN`. The grant is restricted to `lessons:post` for
-Aprendiendo Ruso and expires after 90 days. Import the private Desktop file
-`russian-teacher-bullmq-infisical.json` into the same Infisical `prod` root to
-retain these settings as the source of truth. It contains a newly issued
-scheduler token, not the broader ChatGPT grant. The Viewer machine identity
-cannot write it to Infisical on your behalf.
+Aprendiendo Ruso and expires after 90 days. The scheduler settings have been
+imported into the same Infisical `prod` root and verified against deployment
+without displaying values. Infisical remains the source of truth. The private
+Desktop import file contains the dedicated scheduler token, not the broader
+ChatGPT grant. The Viewer machine identity can verify settings but cannot write
+them to Infisical.
 
 Live verification on 2026-10-19: Redis healthy, scheduler running, and a BullMQ
 job completed an authenticated Cloudflare tick at 21:14:00 UTC. Production D1
