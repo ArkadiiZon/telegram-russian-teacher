@@ -3,7 +3,7 @@ import type { Update } from 'grammy/types';
 import { z } from 'zod';
 import { application } from './app.module';
 import { AppError, type Env } from './types';
-import { secretEqual } from './auth';
+import { authenticate, authorize, secretEqual } from './auth';
 import { McpEndpoint } from './mcp';
 import { OAuth } from './oauth';
 import { Scheduler } from './scheduler';
@@ -44,6 +44,14 @@ export default {
         await app.get(Telegram).handle(body);
         return Response.json({ ok: true });
       }
+      if (url.pathname === '/internal/scheduler/tick') {
+        if (request.method !== 'POST') throw new AppError('method_not_allowed', 405);
+        const principal = await authenticate(request, env);
+        authorize(principal, principal.groupId, 'lessons:post');
+        const app = await application(env);
+        await app.get(Scheduler).tick(Date.now(), principal.groupId);
+        return Response.json({ ok: true }, { headers: { 'cache-control': 'no-store' } });
+      }
       const origin = request.headers.get('origin');
       if (origin && origin !== new URL(base).origin) throw new AppError('invalid_origin', 403);
       if (request.method === 'POST') request = await boundedRequest(request);
@@ -67,9 +75,5 @@ export default {
       if (status === 503) headers['retry-after'] = '5';
       return Response.json({ error: code }, { status, headers });
     }
-  },
-  async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext) {
-    const app = await application(env);
-    await app.get(Scheduler).tick();
   }
 } satisfies ExportedHandler<Env>;

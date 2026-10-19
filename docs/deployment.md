@@ -4,10 +4,12 @@
 - MCP: https://telegram-russian-teacher.arkadizon.workers.dev/mcp
 - Telegram bot: @rus_es_teacher_bot
 - Group: Aprendiendo Ruso (`-5255940220`), Europe/Madrid, publishing enabled
+- Delivery scheduler: BullMQ + dedicated Redis on `zonbook-ops`, in `~/russian-teacher`
+- Cloudflare Cron Triggers: disabled
 - Infisical project: `f51da42d-632d-4516-9a98-3fb013479426`, `prod`, `/`
 - Private plugin: https://chatgpt.com/plugins/plugins_6ad684df906c8191812b07a6caabd2a1
 
-The production D1 schema is applied, all six runtime settings are synchronized
+The production D1 schema is applied, all six Cloudflare runtime settings are synchronized
 from Infisical, and the Telegram webhook is registered. Live MCP initialization,
 tool discovery, reading group configuration, and updating the selected group
 were verified with the scoped deployment credential. This did not post a lesson.
@@ -25,3 +27,23 @@ files are excluded from Git. Do not include them in routine prompts.
 No recurring ChatGPT task has been activated yet. After pairing, configure the
 routine with this plugin available and verify its first scheduled run. The
 backend only publishes authored content already saved in D1.
+
+## BullMQ deployment
+
+The release replaces the Cloudflare delivery cron with an always-on BullMQ Node
+process and a dedicated Redis service. The ops installation lives at
+`/home/deploy/russian-teacher` and uses `compose.scheduler.yml`. Redis has no
+public port, uses AOF persistence, and is separate from Infisical infrastructure.
+The runner calls the scoped Cloudflare delivery endpoint once per minute.
+
+Its private `.local/scheduler.env` contains only `PUBLIC_BASE_URL`, `REDIS_URL`,
+and `SCHEDULER_GROUP_TOKEN`. The grant is restricted to `lessons:post` for
+Aprendiendo Ruso and expires after 90 days. Import the private Desktop file
+`russian-teacher-bullmq-infisical.json` into the same Infisical `prod` root to
+retain these settings as the source of truth. It contains a newly issued
+scheduler token, not the broader ChatGPT grant. The Viewer machine identity
+cannot write it to Infisical on your behalf.
+
+See [scheduler operations](scheduler.md) for startup, verification, recovery,
+and rotation. BullMQ changes delivery scheduling only; ChatGPT OAuth pairing
+and activation of content-writing routines are still pending.

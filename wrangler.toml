@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 [triggers]
-crons = ["* * * * *"]
+crons = []
 
 [[d1_databases]]
 binding = "DB"

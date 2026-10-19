@@ -1,0 +1,7 @@
+FROM node:24-alpine
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY src/queue-runner.ts ./src/queue-runner.ts
+USER node
+CMD ["npm", "run", "scheduler"]

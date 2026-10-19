@@ -7,11 +7,15 @@ flowchart TD
   subgraph Worker[Cloudflare Worker: TypeScript + NestJS]
     OAuth[OAuth discovery + consent + PKCE] --> MCP[Streamable HTTP /mcp]
     MCP --> Store[Store service: D1 operations]
-    Cron[Cloudflare Cron every minute] --> Scheduler[Scheduler service: claim + publish]
+    Tick[POST /internal/scheduler/tick: scoped authorization] --> Scheduler[Scheduler service: D1 claim + publish]
     Scheduler --> Store
     Hook[POST /telegram/webhook: verify secret] --> TelegramService[grammY update handler]
     TelegramService --> Store
   end
+  subgraph OpsHost[Always-on ops box]
+    Bull[BullMQ Node process: minute job] <--> Redis[(Isolated Redis with AOF)]
+  end
+  Bull -->|HTTPS bearer: one group, lessons:post| Tick
   Store <--> D1[(Cloudflare D1)]
   Scheduler -->|sendMessage / sendPoll| Telegram[Telegram group]
   Telegram -->|poll_answer / commands| Hook
@@ -19,7 +23,7 @@ flowchart TD
   Secrets --> Worker
 ```
 
-There is no model API in this implementation. Tailscale is used to reach Infisical from the deployment machine, not by the running Worker. MCP account permissions and ChatGPT scheduled-task support are separate from Cloudflare's delivery cron.
+There is no model API in this implementation. Tailscale is used to reach Infisical from the deployment machine, not by the running Worker. MCP account permissions and ChatGPT scheduled-task support are separate from BullMQ delivery. Cloudflare Cron Triggers are disabled. Redis holds recurring trigger jobs, while D1 is the source of truth for authored content, publication times, delivery leases, and results. The Cloudflare Worker never connects to Redis or to the private ops network. See [scheduler operations](scheduler.md).
 
 ## Database relationships
 
@@ -98,3 +102,9 @@ stateDiagram-v2
   uncertain --> pending: operator checks Telegram and explicitly retries
   failed --> pending: operator explicitly retries
 ```
+
+## Scheduling ownership and failures
+
+ChatGPT routines author content and call MCP. BullMQ's stable `delivery-every-minute` Job Scheduler produces delivery ticks using a UTC cron expression. The consumer calls Cloudflare with an expiring token restricted to `lessons:post` and one group. No content, BotFather token, or OAuth signing secret is put in Redis. For additional groups, run a separate Compose project and Redis volume with that group's posting token.
+
+Each successful tick processes at most three due lessons. Group-enabled checks and atomic D1 leases apply to every delivery. BullMQ retries failed tick requests up to three times with exponential backoff; a Telegram send with an unknown outcome remains `uncertain` in D1 and cannot be resent by another tick. Operator review is required before retrying it. Redis AOF preserves recurring jobs across restarts; restarting the runner also upserts the same scheduler ID without adding a second schedule. An ops outage pauses delivery; overdue D1 entries are picked up when ticks resume.

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "dev": "npm run build && wrangler dev --test-scheduled",
+    "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "check": "tsc --noEmit",
     "test": "npm run build && node --test --test-concurrency=1 test/*.test.mjs",
@@ -17,12 +17,14 @@
     "admin": "node scripts/admin.mjs",
     "webhook": "node scripts/webhook.mjs",
     "secrets:sync": "node scripts/sync-secrets.mjs",
-    "infisical": "node scripts/infisical.mjs"
+    "infisical": "node scripts/infisical.mjs",
+    "scheduler": "node --experimental-strip-types src/queue-runner.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
+    "bullmq": "^5.81.5",
     "grammy": "^1.38.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",

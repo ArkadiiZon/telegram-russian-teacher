@@ -2,7 +2,7 @@
 
 A **TypeScript + NestJS** backend on **Cloudflare Workers + D1**. ChatGPT is the teacher: it writes Russian lessons for Spanish-speaking friends and submits them through an authenticated MCP connection. The backend stores content, publishes Telegram messages/quizzes at the scheduled time, and records quiz progress.
 
-**There is no OpenAI API integration or API key in this version.** No autonomous content generation runs on the backend. ChatGPT routines can prepare lessons in advance; Cloudflare delivers content already saved in D1.
+**There is no OpenAI API integration or API key in this version.** No autonomous content generation runs on the backend. ChatGPT routines can prepare lessons in advance; BullMQ on the ops box triggers Cloudflare to deliver content already saved in D1.
 
 ## Architecture
 
@@ -13,17 +13,21 @@ flowchart TD
   Routine[ChatGPT scheduled task] -. available tools and permissions .-> ChatGPT
   subgraph Cloudflare
     MCP[Stateless Streamable HTTP MCP] --> Nest[NestJS application services]
-    Cron[Every-minute Cron Trigger] --> Nest
+    Tick[POST /internal/scheduler/tick] --> Nest
     Webhook[Secret-authenticated webhook] --> Nest
     Nest <--> D1[(D1: groups, lessons, answers, grants)]
     Secrets[Cloudflare Worker secrets] --> Nest
   end
+  subgraph Ops[Always-on ops box]
+    Bull[BullMQ Node worker: every minute] <--> Redis[(Dedicated Redis: persistent AOF)]
+  end
+  Bull -->|HTTPS + group-scoped posting token| Tick
   Nest -->|grammY: lessons + quiz polls| Telegram
   Telegram -->|Commands + poll answers| Webhook
   Infisical[Infisical on private ops box] -->|Deployment sync over Tailscale| Secrets
 ```
 
-Nest runs as a standalone application context with providers and dependency injection. Cloudflare's native `fetch` and `scheduled` handlers invoke those services. There is no Express server, socket listener, or in-process scheduler. The build excludes unused Nest HTTP/microservice/file-validation adapters. [Nest standalone applications](https://docs.nestjs.com/application-context), [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/), [grammY Workers hosting](https://grammy.dev/hosting/cloudflare-workers-nodejs).
+Nest runs as a standalone application context in Cloudflare with providers and dependency injection. The native `fetch` handler invokes those services. A separate Node process on the ops box runs BullMQ with Redis and calls an authenticated, group-scoped delivery endpoint every minute. Cloudflare Cron Triggers are disabled. [Nest standalone applications](https://docs.nestjs.com/application-context), [BullMQ Job Schedulers](https://docs.bullmq.io/guide/job-schedulers), [grammY Workers hosting](https://grammy.dev/hosting/cloudflare-workers-nodejs).
 
 ## ChatGPT MCP and routines
 
@@ -31,12 +35,13 @@ An MCP connection gives ChatGPT tools to manage this backend. It does not give T
 
 Official documentation describes [scheduled tasks using connected tools](https://learn.chatgpt.com/docs/automations) and [OAuth-authenticated MCP connections](https://developers.openai.com/plugins/build/auth). Availability and unattended write approvals depend on your ChatGPT surface, account, workspace policy, and tool permissions. Test one scheduled run in the actual account before relying on it. The repository cannot activate account features or bypass approval requirements.
 
-Cloudflare Cron is independent of ChatGPT: it publishes pending D1 entries even when your computer and ChatGPT are closed. If a ChatGPT routine fails, existing scheduled content still posts, but new lessons will not be created. Have ChatGPT prepare several days ahead for continuity. Group `lesson_time` and `quiz_time` are preferences for the teacher/routine; they do not create recurring content themselves.
+BullMQ delivery is independent of ChatGPT: it publishes pending D1 entries while the ops scheduler and Cloudflare are running, even when your computer and ChatGPT are closed. If a ChatGPT routine fails, existing scheduled content still posts, but new lessons will not be created. Have ChatGPT prepare several days ahead for continuity. Group `lesson_time` and `quiz_time` are preferences for the teacher/routine; they do not create recurring content themselves.
 
 ## Requirements
 
 - Node.js 24 LTS and npm (Node >=22 supported by the application tooling).
 - A Cloudflare account with Workers and D1 available.
+- An always-on Node.js host with Docker Compose and a dedicated Redis instance for BullMQ.
 - A Telegram bot from BotFather and a group you administer.
 - An MCP-capable client. For ChatGPT use a custom connection with a predefined OAuth client.
 - Infisical CLI and access to your existing instance for the recommended secret workflow.
@@ -53,7 +58,7 @@ npm test
 npm run dev
 ```
 
-Use a **separate development bot** if testing Telegram locally. Telegram needs a public HTTPS webhook; localhost health and MCP can be tested without one. Wrangler's `--test-scheduled` option exposes a development cron trigger at `/__scheduled`; it is not an application production route.
+Use a **separate development bot** if testing Telegram locally. Telegram needs a public HTTPS webhook; localhost health and MCP can be tested without one. For local delivery, run the BullMQ process separately with `PUBLIC_BASE_URL=http://localhost:8787`, a local `REDIS_URL`, and a local `SCHEDULER_GROUP_TOKEN`. See [scheduler operations](docs/scheduler.md).
 
 ```sh
 curl http://localhost:8787/health
@@ -180,7 +185,7 @@ Every tool requires `group_id`, checks its match with the credential, and checks
 | `schedule_lesson` | `lessons:write` | Save authored lesson/quiz for an explicit timestamp |
 | `list_lessons` | `lessons:read` | Latest 50 lesson states and message IDs |
 | `get_lesson` | `lessons:read` | Read saved lesson/quiz content for follow-up teaching |
-| `post_lesson` | `lessons:post` | Move an existing pending lesson to the next cron tick |
+| `post_lesson` | `lessons:post` | Move an existing pending lesson to the next BullMQ delivery tick |
 | `get_progress` | `progress:read` | Group or individual aggregate quiz results |
 
 `schedule_lesson` parameters:
@@ -211,7 +216,7 @@ Create routines only after the MCP connection works. No routine is created by de
 
 ## Reliability and operations
 
-- Cron scans due entries every minute, processes up to three per invocation, and checks group enabled state again before sending. Posting can lag by a minute or longer under backlog/platform delays.
+- BullMQ calls the scoped delivery endpoint every minute, which scans due D1 entries, processes up to three per invocation, and checks group enabled state again before sending. Posting can lag by a minute or longer under backlog/platform delays. Redis outages or an offline ops host pause delivery until recovery; D1 retains pending lessons.
 - Atomic D1 claims and a unique `(group_id, dedupe_key)` prevent concurrent delivery of the same pending lesson. Preparation claims have two-minute leases and bounded retries.
 - Once a Telegram send begins, an interrupted/failed call becomes `uncertain` instead of being automatically repeated. Telegram does not provide an idempotency key for sendMessage/sendPoll. A network timeout can mean the message arrived. Exactly-once delivery across Telegram and D1 is not claimed.
 - Inspect Telegram before manually retrying a failed/uncertain lesson:
@@ -229,11 +234,14 @@ npm run admin -- retry LESSON_UUID --checked-telegram --remote
 
 ## Repository map
 
-- `src/worker.ts`: native Workers HTTP and cron entry points
+- `src/worker.ts`: native Workers HTTP, webhook, OAuth, MCP, and scoped delivery endpoint
 - `src/app.module.ts`: standalone Nest module and provider graph
 - `src/mcp.ts`, `src/auth.ts`, `src/oauth.ts`: tools, scopes, authentication, OAuth
 - `src/store.ts`: D1 group, schedule, and progress operations
 - `src/scheduler.ts`, `src/telegram.ts`: durable delivery and Telegram updates
+- `src/queue-runner.ts`: BullMQ repeating job producer and consumer on the ops box
+- `compose.scheduler.yml`, `Dockerfile.scheduler`: isolated Redis and scheduler deployment
+- `docs/scheduler.md`: scheduler settings, operations, rotation, and recovery
 - `migrations/`: D1 schema and OAuth grant tables
 - `scripts/`: build, group/token administration, webhook registration, Infisical-to-Workers sync
 - `test/`: isolated Workers/D1 integration checks

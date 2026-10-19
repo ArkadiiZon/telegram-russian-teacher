@@ -45,7 +45,7 @@ export class Store {
     if (lesson.status !== 'pending') throw new AppError('lesson_not_pending', 409);
     await this.db.prepare(`UPDATE lessons SET publish_at = ? WHERE id = ? AND group_id = ? AND status = 'pending'`)
       .bind(Date.now(), id, group).run();
-    return { id, status: 'queued', detail: 'Next cron tick; group must be enabled.' };
+    return { id, status: 'queued', detail: 'Next BullMQ delivery tick; group must be enabled.' };
   }
   async progress(group: string, userId?: string) {
     return this.db.prepare(`SELECT COUNT(*) AS answered, COALESCE(SUM(a.correct), 0) AS correct,

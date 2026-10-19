@@ -6,16 +6,16 @@ import { lessonContent, quizContent } from './validation';
 @Injectable()
 export class Scheduler {
   constructor(private env: Env, private store: Store) {}
-  async tick(now = Date.now()) {
+  async tick(now: number, groupId: string) {
     const db = this.store.db;
     // Never blindly resend after an interrupted Telegram call: its outcome may be unknown.
     await db.prepare(`UPDATE lessons SET status = 'uncertain', error_code = 'delivery_interrupted'
-      WHERE status = 'sending' AND lease_until < ?`).bind(now).run();
+      WHERE status = 'sending' AND lease_until < ? AND group_id = ?`).bind(now, groupId).run();
     await db.prepare(`UPDATE lessons SET status = CASE WHEN attempts >= 3 THEN 'failed' ELSE 'pending' END,
-      error_code = 'preparation_interrupted' WHERE status = 'preparing' AND lease_until < ?`).bind(now).run();
+      error_code = 'preparation_interrupted' WHERE status = 'preparing' AND lease_until < ? AND group_id = ?`).bind(now, groupId).run();
     const due = (await db.prepare(`SELECT l.* FROM lessons l JOIN groups g ON g.id = l.group_id
-      WHERE l.status = 'pending' AND l.publish_at <= ? AND g.enabled = 1 ORDER BY l.publish_at LIMIT 3`)
-      .bind(now).all<Lesson>()).results;
+      WHERE l.status = 'pending' AND l.publish_at <= ? AND g.enabled = 1 AND l.group_id = ? ORDER BY l.publish_at LIMIT 3`)
+      .bind(now, groupId).all<Lesson>()).results;
     for (const row of due) await this.deliver(row.id);
     // Minimal retention for replay protection and OAuth one-time codes.
     await db.prepare('DELETE FROM telegram_updates WHERE created_at < ?').bind(now - 7 * 86_400_000).run();

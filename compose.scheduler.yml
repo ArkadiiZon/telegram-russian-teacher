@@ -1,0 +1,36 @@
+name: russian-teacher
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec, --maxmemory-policy, noeviction]
+    restart: unless-stopped
+    volumes:
+      - scheduler-redis:/data
+    networks: [queue]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    restart: unless-stopped
+    env_file: .local/scheduler.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    networks: [queue, outbound]
+    depends_on:
+      redis:
+        condition: service_healthy
+    stop_grace_period: 120s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+networks:
+  queue:
+    internal: true
+  outbound: {}
+volumes:
+  scheduler-redis: {}

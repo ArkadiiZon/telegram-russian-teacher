@@ -51,7 +51,7 @@ export class McpEndpoint {
       a => this.store.list(a.group_id));
     register('get_lesson', 'Read saved lesson or quiz content in your group to prepare follow-up exercises.',
       'lessons:read', { lesson_id: z.string().uuid() }, true, a => this.store.lesson(a.group_id, a.lesson_id));
-    register('post_lesson', 'Queue an existing pending lesson for publication on the next cron tick. This posts to Telegram; the group must be enabled.',
+    register('post_lesson', 'Queue an existing pending lesson for publication on the next BullMQ delivery tick. This posts to Telegram; the group must be enabled.',
       'lessons:post', { lesson_id: z.string().uuid() }, false, a => this.store.post(a.group_id, a.lesson_id));
     register('get_progress', 'Get aggregate quiz progress, optionally limited to one Telegram user ID, within the authorized group.',
       'progress:read', { user_id: z.string().regex(/^\d{1,20}$/).optional() }, true,

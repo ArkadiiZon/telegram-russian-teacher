@@ -12,13 +12,15 @@ const base = 'https://teacher.example';
 const callback = 'https://chatgpt.example/callback';
 const group = '-1001234567890', otherGroup = '-1009876543210';
 let lessonId;
+const tick = (credential = token) => mf.dispatchFetch(`${base}/internal/scheduler/tick`, {
+  method: 'POST', headers: { authorization: `Bearer ${credential}` }
+});
 const rpc = (name, args, credential = token) => mf.dispatchFetch(`${base}/mcp`, {
   method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: `Bearer ${credential}` },
   body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
 });
 before(async () => {
-  await build({ stdin: { contents: `import worker from './dist/worker.js'; export default { ...worker, async fetch(req, env, ctx) { if (new URL(req.url).pathname === '/__tick') { await worker.scheduled({}, env, ctx); return new Response('ok'); } return worker.fetch(req, env, ctx); } };`, resolveDir: process.cwd() },
-    outfile: '.local/test-worker.js', bundle: true, format: 'esm', platform: 'node', external: ['node:*', 'cloudflare:*'] });
+  await build({ entryPoints: ['dist/worker.js'], outfile: '.local/test-worker.js', bundle: true, format: 'esm', platform: 'node', external: ['node:*', 'cloudflare:*'] });
   const interceptors = [];
   mocks = { get: origin => ({ intercept: ({path, method}) => ({ reply: (status, body) => {
     interceptors.push({url: origin + path, method, status, body});
@@ -91,15 +93,15 @@ test('ChatGPT can author Spanish lesson once using an idempotency key', async ()
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM lessons').first()).n, 1);
 });
 test('paused group does not send; enabling delivers authored content from ChatGPT', async () => {
-  await mf.dispatchFetch(`${base}/__tick`);
+  await tick();
   assert.equal((await db.prepare('SELECT status FROM lessons WHERE id=?').bind(lessonId).first()).status, 'pending');
   await rpc('update_group_config', { group_id: group, patch: { enabled: true } });
   mocks.get('https://api.telegram.org').intercept({ path: '/bot123456:TEST_TOKEN/sendMessage', method: 'POST' })
     .reply(200, { ok: true, result: { message_id: 5, date: 1, chat: { id: Number(group), type: 'supergroup' }, text: 'lesson' } });
-  const res = await mf.dispatchFetch(`${base}/__tick`);
+  const res = await tick();
   assert.equal(res.status, 200);
   assert.equal((await db.prepare('SELECT status FROM lessons WHERE id=?').bind(lessonId).first()).status, 'sent');
-  await mf.dispatchFetch(`${base}/__tick`); // No mock left: a duplicate delivery would fail.
+  await tick(); // No mock left: a duplicate delivery would fail.
   mocks.assertNoPendingInterceptors();
 });
 test('webhook authenticates before parsing and deduplicates quiz results', async () => {
@@ -120,9 +122,22 @@ test('webhook authenticates before parsing and deduplicates quiz results', async
 });
 test('interrupted delivery is quarantined instead of automatically reposted', async () => {
   await db.prepare(`UPDATE lessons SET status='sending', lease_until=0 WHERE id=?`).bind(lessonId).run();
-  await mf.dispatchFetch(`${base}/__tick`);
+  await tick();
   assert.equal((await db.prepare('SELECT status FROM lessons WHERE id=?').bind(lessonId).first()).status, 'uncertain');
 });
+test('BullMQ trigger requires posting permission and cannot recover another group leases', async () => {
+  assert.equal((await mf.dispatchFetch(`${base}/internal/scheduler/tick`, { method: 'POST' })).status, 401);
+  assert.equal((await tick(readonly)).status, 403);
+  await db.prepare(`INSERT INTO lessons(id,group_id,kind,topic,publish_at,dedupe_key,status,lease_until,created_at,content)
+    VALUES ('other-lease',?,'lesson','private',0,'other-lease','sending',1,0,'{}')`).bind(otherGroup).run();
+  await db.prepare('UPDATE groups SET enabled=1 WHERE id=?').bind(otherGroup).run();
+  await db.prepare(`INSERT INTO lessons(id,group_id,kind,topic,publish_at,dedupe_key,status,created_at,content)
+    VALUES ('other-pending',?,'lesson','private',0,'other-pending','pending',0,'{}')`).bind(otherGroup).run();
+  assert.equal((await tick()).status, 200);
+  assert.equal((await db.prepare("SELECT status FROM lessons WHERE id='other-lease'").first()).status, 'sending');
+  assert.equal((await db.prepare("SELECT status FROM lessons WHERE id='other-pending'").first()).status, 'pending');
+});
+
 test('OAuth rejects an unregistered callback', async () => {
   const params = new URLSearchParams({ client_id: 'teacher-chatgpt', response_type: 'code', redirect_uri: 'https://evil.example', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'state', resource: `${base}/mcp` });
   assert.equal((await mf.dispatchFetch(`${base}/oauth/authorize?${params}`)).status, 400);
@@ -165,7 +180,7 @@ test('authored quizzes become native non-anonymous Telegram polls', async () => 
   assert.ok(!result.isError, JSON.stringify(result));
   mocks.get('https://api.telegram.org').intercept({ path: '/bot123456:TEST_TOKEN/sendPoll', method: 'POST' })
     .reply(200, { ok: true, result: { message_id: 6, date: 1, chat: { id: Number(group), type: 'supergroup' }, poll: { id: 'poll-authored', type: 'quiz', is_anonymous: false } } });
-  await mf.dispatchFetch(`${base}/__tick`);
+  await tick();
   const row = await db.prepare('SELECT status, poll_id, correct_option FROM lessons WHERE id=?').bind(JSON.parse(result.content[0].text).id).first();
   assert.equal(row.status, 'sent'); assert.equal(row.poll_id, 'poll-authored'); assert.equal(row.correct_option, 1);
   mocks.assertNoPendingInterceptors();
@@ -192,8 +207,8 @@ test('Telegram send errors stay uncertain and are not auto-retried', async () =>
   const id = JSON.parse(result.content[0].text).id;
   mocks.get('https://api.telegram.org').intercept({ path: '/bot123456:TEST_TOKEN/sendMessage', method: 'POST' })
     .reply(500, { ok: false, error_code: 500, description: 'Temporary error' });
-  await mf.dispatchFetch(`${base}/__tick`);
-  await mf.dispatchFetch(`${base}/__tick`);
+  await tick();
+  await tick();
   assert.equal((await db.prepare('SELECT status FROM lessons WHERE id=?').bind(id).first()).status, 'uncertain');
   mocks.assertNoPendingInterceptors();
 });
