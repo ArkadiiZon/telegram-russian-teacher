@@ -21,6 +21,7 @@ flowchart TD
   Telegram -->|poll_answer / commands| Hook
   Ops[Infisical on Tailscale ops box] -->|Sync selected settings at deployment| Secrets[Cloudflare Worker secrets]
   Secrets --> Worker
+  Ops -->|Export only scheduler settings to private ops env| Bull
 ```
 
 There is no model API in this implementation. Tailscale is used to reach Infisical from the deployment machine, not by the running Worker. MCP account permissions and ChatGPT scheduled-task support are separate from BullMQ delivery. Cloudflare Cron Triggers are disabled. Redis holds recurring trigger jobs, while D1 is the source of truth for authored content, publication times, delivery leases, and results. The Cloudflare Worker never connects to Redis or to the private ops network. See [scheduler operations](scheduler.md).

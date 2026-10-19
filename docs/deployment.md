@@ -44,6 +44,12 @@ retain these settings as the source of truth. It contains a newly issued
 scheduler token, not the broader ChatGPT grant. The Viewer machine identity
 cannot write it to Infisical on your behalf.
 
+Live verification on 2026-10-19: Redis healthy, scheduler running, and a BullMQ
+job completed an authenticated Cloudflare tick at 21:14:00 UTC. Production D1
+contained no lessons during this check, so no Telegram message was sent. Local
+validation passed all 25 tests, including missing credentials, posting scopes,
+cross-group lease recovery, and pending lesson isolation.
+
 See [scheduler operations](scheduler.md) for startup, verification, recovery,
 and rotation. BullMQ changes delivery scheduling only; ChatGPT OAuth pairing
 and activation of content-writing routines are still pending.

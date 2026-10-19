@@ -25,6 +25,7 @@ flowchart TD
   Nest -->|grammY: lessons + quiz polls| Telegram
   Telegram -->|Commands + poll answers| Webhook
   Infisical[Infisical on private ops box] -->|Deployment sync over Tailscale| Secrets
+  Infisical -->|Selected scheduler settings| Bull
 ```
 
 Nest runs as a standalone application context in Cloudflare with providers and dependency injection. The native `fetch` handler invokes those services. A separate Node process on the ops box runs BullMQ with Redis and calls an authenticated, group-scoped delivery endpoint every minute. Cloudflare Cron Triggers are disabled. [Nest standalone applications](https://docs.nestjs.com/application-context), [BullMQ Job Schedulers](https://docs.bullmq.io/guide/job-schedulers), [grammY Workers hosting](https://grammy.dev/hosting/cloudflare-workers-nodejs).
