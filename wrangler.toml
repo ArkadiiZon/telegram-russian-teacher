@@ -10,7 +10,7 @@ crons = ["* * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "russian-teacher"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "baefa0a8-252a-4d19-9a5d-f62fdfbb5913"
 migrations_dir = "migrations"
 
 [observability]
