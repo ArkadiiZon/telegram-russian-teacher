@@ -36,7 +36,7 @@ async function requestJson(fetcher, url, options) {
   let response;
   try { response = await fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(15_000) }); }
   catch { throw new Error('Cannot reach Infisical. Check the Tailscale connection.'); }
-  if (!response.ok) throw new Error(`Infisical HTTP ${response.status}; check machine identity and project permissions.`);
+  if (!response.ok) throw Object.assign(new Error(`Infisical HTTP ${response.status} at ${new URL(url).pathname}; check API compatibility and machine identity permissions.`), { status: response.status });
   try { return await response.json(); }
   catch { throw new Error('Infisical returned an invalid JSON response.'); }
 }
@@ -52,9 +52,18 @@ export async function loadSettings(config, credentials, fetcher = fetch) {
   // Use the documented secrets API; no SDK/CLI installation needed.
   const query = new URLSearchParams({ projectId: config.projectId, environment: config.environment,
     secretPath: config.secretPath, recursive: 'false', includeImports: 'false', expandSecretReferences: 'false' });
-  const result = await requestJson(fetcher, `${base}/api/v4/secrets?${query}`, {
-    headers: { authorization: `Bearer ${login.accessToken}` }
-  });
+  const options = { headers: { authorization: `Bearer ${login.accessToken}` } };
+  let result;
+  try {
+    result = await requestJson(fetcher, `${base}/api/v4/secrets?${query}`, options);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    // Older self-hosted releases expose v3/raw. Keep the exact same project scope;
+    // never fall back on authentication/authorization errors.
+    const legacyQuery = new URLSearchParams({ workspaceId: config.projectId, environment: config.environment,
+      secretPath: config.secretPath, recursive: 'false', include_imports: 'false', expandSecretReferences: 'false' });
+    result = await requestJson(fetcher, `${base}/api/v3/secrets/raw?${legacyQuery}`, options);
+  }
   return selectSettings(result.secrets);
 }
 

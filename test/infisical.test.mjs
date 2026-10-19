@@ -40,3 +40,27 @@ test('Infisical failures never reveal upstream response bodies', async () => {
   await assert.rejects(() => loadSettings(config, {clientId:'test', clientSecret:'SECRET_SENTINEL'},
     async () => new Response('SECRET_SENTINEL', {status:403})), error => !error.message.includes('SECRET_SENTINEL') && error.message.includes('403'));
 });
+test('legacy Infisical fallback keeps the same scope when v4 is unavailable', async () => {
+  const calls=[];
+  const result=await loadSettings(config,{clientId:'test',clientSecret:'secret'},async(url,options)=>{
+    calls.push({url,options});
+    if(calls.length===1) return Response.json({accessToken:'test-access'});
+    if(calls.length===2) return new Response('Not found',{status:404});
+    return Response.json({secrets:entries(values)});
+  });
+  assert.deepEqual(result,values);
+  const legacy=new URL(calls[2].url);
+  assert.equal(legacy.pathname,'/api/v3/secrets/raw');
+  assert.equal(legacy.searchParams.get('workspaceId'),config.projectId);
+  assert.equal(legacy.searchParams.get('environment'),'prod');
+  assert.equal(legacy.searchParams.get('secretPath'),'/');
+  assert.equal(legacy.searchParams.get('include_imports'),'false');
+});
+test('Infisical never retries or falls back after a permission denial', async () => {
+  let calls=0;
+  await assert.rejects(()=>loadSettings(config,{clientId:'test',clientSecret:'secret'},async()=>{
+    calls++;
+    return calls===1 ? Response.json({accessToken:'test-access'}) : new Response('Forbidden',{status:403});
+  }),/403/);
+  assert.equal(calls,2);
+});

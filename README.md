@@ -149,6 +149,11 @@ npm run admin -- group -1001234567890 "Ruso para amigos" Europe/Madrid --remote
 npm run admin -- token -1001234567890 config:read,config:write,lessons:read,lessons:write,lessons:post,progress:read 90 --remote
 ```
 
+For automated setup, keep the issued MCP token out of logs by adding
+`--out .local/mcp-group-token.json` to the token command. This creates a private,
+non-overwriting JSON file suitable for importing `MCP_GROUP_TOKEN` into Infisical.
+It is not one of the six Worker runtime settings.
+
 Group registration requires trusted D1 operator access. A chat member cannot register arbitrary groups or acquire MCP credentials through Telegram. Groups start **paused**. OAuth does not grant access to a group just because a caller supplies its ID.
 
 ### Connect ChatGPT through MCP

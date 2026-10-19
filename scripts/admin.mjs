@@ -3,7 +3,10 @@ import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const [command, ...args] = process.argv.slice(2);
 const remote = args.includes('--remote');
-const values = args.filter(a => a !== '--remote');
+const outputIndex = args.indexOf('--out');
+const output = outputIndex < 0 ? null : args[outputIndex + 1];
+if (outputIndex >= 0 && (!output || output.startsWith('--') || command !== 'token')) throw new Error('--out requires a file path and the token command');
+const values = args.filter((a, i) => a !== '--remote' && i !== outputIndex && i !== (outputIndex < 0 ? -1 : outputIndex + 1));
 const quote = s => `'${String(s).replaceAll("'", "''")}'`;
 const group = s => { if (!/^-\d{1,20}$/.test(s ?? '')) throw new Error('Expected negative Telegram group ID'); return s; };
 const scopes = ['config:read','config:write','lessons:read','lessons:write','lessons:post','progress:read'];
@@ -29,18 +32,28 @@ if (command === 'group') {
   if (!/^[a-f0-9-]{36}$/.test(id ?? '') || confirmation !== '--checked-telegram') throw new Error('Check Telegram for a previous delivery, then pass lesson ID and --checked-telegram');
   sql = `UPDATE lessons SET status='pending',attempts=0,lease_until=NULL,error_code=NULL,publish_at=${Date.now()} WHERE id=${quote(id)} AND status IN ('failed','uncertain');`;
 } else {
-  console.error('Usage: npm run admin -- group <negative-id> <title> [timezone] [--remote]\n       npm run admin -- token <negative-id> [comma-scopes] [days] [--remote]\n       npm run admin -- revoke <token-sha256> [--remote]\n       npm run admin -- retry <lesson-uuid> --checked-telegram [--remote]');
+  console.error('Usage: npm run admin -- group <negative-id> <title> [timezone] [--remote]\n       npm run admin -- token <negative-id> [comma-scopes] [days] [--remote] [--out FILE]\n       npm run admin -- revoke <token-sha256> [--remote]\n       npm run admin -- retry <lesson-uuid> --checked-telegram [--remote]');
   process.exit(1);
 }
 mkdirSync('.local', { recursive: true, mode: 0o700 });
 const path = `.local/admin-${randomBytes(8).toString('hex')}.sql`;
 writeFileSync(path, sql, { mode: 0o600 });
+let outputWritten = false, persisted = false;
 try {
+  if (secret && output) {
+    writeFileSync(output, JSON.stringify({ MCP_GROUP_TOKEN: secret }, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+    outputWritten = true;
+  }
   const result = spawnSync('npx', ['--no-install', 'wrangler', 'd1', 'execute', 'DB', remote ? '--remote' : '--local', '--file', path], { stdio: 'inherit' });
   if (result.status !== 0) process.exitCode = 1;
   else if (secret) {
-    // Intentionally shown only at issuance. Save directly in Infisical, never in source control.
-    console.log(`\nGroup access token (save in Infisical now):\n${secret}`);
+    persisted = true;
+    // --out keeps the new credential out of terminal/tool logs.
+    if (output) console.log(`Group access token saved privately to ${output}`);
+    else console.log(`\nGroup access token (save in Infisical now):\n${secret}`);
     console.log(`Revocation hash: ${createHash('sha256').update(secret).digest('hex')}`);
   }
-} finally { unlinkSync(path); }
+} finally {
+  unlinkSync(path);
+  if (outputWritten && !persisted) unlinkSync(output);
+}
