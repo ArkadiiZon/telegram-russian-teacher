@@ -55,3 +55,13 @@ cross-group lease recovery, and pending lesson isolation.
 See [scheduler operations](scheduler.md) for startup, verification, recovery,
 and rotation. BullMQ changes delivery scheduling only; ChatGPT OAuth pairing
 and activation of content-writing routines are still pending.
+
+## OAuth browser form compatibility
+
+The consent document uses `Referrer-Policy: same-origin` so a real browser's
+HTML form POST preserves the origin required by CSRF validation. The successful
+OAuth redirect still uses `no-referrer`. Missing, null, and foreign origins remain
+rejected; neither the callback allowlist nor authentication has been relaxed.
+The initial `invalid_origin` error was reproduced with a dummy credential before
+this fix. See the browser compatibility notes in
+[MDN Referrer-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header).

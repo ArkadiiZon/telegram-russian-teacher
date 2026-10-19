@@ -48,7 +48,7 @@ export class OAuth {
     const signed = `${payload}.${await this.signature(payload)}`;
     return new Response(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Conectar profesor de ruso</title><h1>Conectar ChatGPT al profesor de ruso</h1><p>Permisos solicitados: ${escape(parsed.scope)}</p><p>Introduce tu token de acceso del grupo. La conexión quedará limitada a ese grupo y a sus permisos. Usa únicamente el token generado para esta aplicación.</p><form method="post" action="/oauth/authorize"><input type="hidden" name="consent" value="${escape(signed)}"><label>Token del grupo <input type="password" name="group_token" required autocomplete="off"></label><button type="submit">Autorizar conexión</button></form></html>`, {
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
-        'content-security-policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'", 'referrer-policy': 'no-referrer' }
+        'content-security-policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'", 'referrer-policy': 'same-origin' }
     });
   }
   async approve(request: Request) {

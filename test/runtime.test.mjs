@@ -142,6 +142,24 @@ test('OAuth rejects an unregistered callback', async () => {
   const params = new URLSearchParams({ client_id: 'teacher-chatgpt', response_type: 'code', redirect_uri: 'https://evil.example', code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'state', resource: `${base}/mcp` });
   assert.equal((await mf.dispatchFetch(`${base}/oauth/authorize?${params}`)).status, 400);
 });
+test('OAuth form keeps a same-origin browser POST while rejecting null and foreign origins', async () => {
+  const params = new URLSearchParams({ client_id: 'teacher-chatgpt', response_type: 'code', redirect_uri: callback,
+    code_challenge: 'a'.repeat(43), code_challenge_method: 'S256', state: 'browser-csrf-test', resource: `${base}/mcp` });
+  const response = await mf.dispatchFetch(`${base}/oauth/authorize?${params}`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('referrer-policy'), 'same-origin');
+  assert.match(response.headers.get('content-security-policy'), /form-action 'self'/);
+  const html = await response.text();
+  const signed = /name="consent" value="([^"]+)"/.exec(html)?.[1];
+  assert.ok(signed);
+  const body = new URLSearchParams({consent: signed, group_token: token}).toString();
+  for (const origin of ['null', 'https://untrusted.example', undefined]) {
+    const headers = { 'content-type': 'application/x-www-form-urlencoded', ...(origin ? {origin} : {}) };
+    const denied = await mf.dispatchFetch(`${base}/oauth/authorize`, {method:'POST',headers,body});
+    assert.equal(denied.status, 403);
+    assert.equal((await denied.json()).error, 'invalid_origin');
+  }
+});
 test('OAuth PKCE, single-use codes, rotated refresh and parent revocation', async () => {
   const verifier = randomBytes(32).toString('base64url');
   const challenge = createHash('sha256').update(verifier).digest('base64url');
@@ -151,6 +169,7 @@ test('OAuth PKCE, single-use codes, rotated refresh and parent revocation', asyn
   assert.ok(consent, page);
   const approved = await mf.dispatchFetch(`${base}/oauth/authorize`, { method: 'POST', redirect: 'manual', headers: { origin: base, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ consent, group_token: readonly }).toString() });
   assert.equal(approved.status, 302, await approved.clone().text());
+  assert.equal(approved.headers.get('referrer-policy'), 'no-referrer');
   const redirect = new URL(approved.headers.get('location'));
   assert.equal(redirect.searchParams.get('state'), 'csrf-check');
   const exchange = body => mf.dispatchFetch(`${base}/oauth/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: 'teacher-chatgpt', resource: `${base}/mcp`, ...body }).toString() });
