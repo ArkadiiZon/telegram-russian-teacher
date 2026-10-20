@@ -1,5 +1,22 @@
 # ChatGPT routines through MCP
 
+## Active alphabet curriculum
+
+On 2026-10-20, the owner requested one Russian letter every day for the next
+month. The complete 33-letter alphabet is scheduled from 2026-10-20 through
+2026-11-21 inclusive: 33 lessons at 10:00 and 33 matching quizzes at 18:00,
+Europe/Madrid. Explicit timestamps account for the 2026-10-25 clock change.
+Full Spanish teaching content is saved in
+`content/alphabet-2026-10-20.json` and already stored in production through MCP.
+Keys use `routine:YYYY-MM-DD:lesson` and `routine:YYYY-MM-DD:quiz`.
+
+These saved entries are delivered by BullMQ without a daily model call or an
+active ChatGPT recurring task. Any future content-writing routine must preserve
+the existing curriculum and skip occupied dates. The MCP list tool returns only
+the newest 50 entries; use get_lesson for a saved ID or scoped database checks
+when verifying the full 66-entry course. Do not infer missing early dates from
+that truncated list.
+
 First deploy the Worker and the BullMQ scheduler on the ops box, register the group, link OAuth, and run one manual lesson. Keep the group ID and teaching instructions in the ChatGPT project. Do not put tokens in project prompts or scheduled-task text.
 
 The backend does not implement a ChatGPT routine or call a model. It delivers saved lessons. Create scheduled tasks from your ChatGPT account with this MCP connection available, then check their actual tool access and write permissions. See [official scheduled task documentation](https://learn.chatgpt.com/docs/automations).

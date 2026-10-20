@@ -19,8 +19,11 @@ The plugin's teaching skill defaults to this selected group. Its saved release
 is separate from installation and OAuth account connection. Finish pairing in
 ChatGPT using the prepared custom MCP connection form. The exact callback shown
 by ChatGPT, `https://chatgpt.com/connector_platform_oauth_redirect`, has been
-verified in Infisical and synchronized to Cloudflare. OAuth consent and live
-host tool verification remain pending.
+verified in Infisical and synchronized to Cloudflare. OAuth consent completed on 2026-10-20. ChatGPT shows the connected account,
+and D1 confirms an active refresh-token session. The connected MCP tools were
+verified from ChatGPT, and the welcome message was confirmed sent to Telegram.
+On 2026-10-20, ChatGPT authored and scheduled 33 alphabet lessons and 33 quizzes
+through 2026-11-21. See the saved curriculum in `content/alphabet-2026-10-20.json`.
 
 Keep MCP_GROUP_TOKEN in Infisical and use it only on this backend's OAuth consent
 page. It is not a Worker environment variable. Credentials and generated token
@@ -55,7 +58,7 @@ cross-group lease recovery, and pending lesson isolation.
 
 See [scheduler operations](scheduler.md) for startup, verification, recovery,
 and rotation. BullMQ changes delivery scheduling only; ChatGPT OAuth pairing
-and activation of content-writing routines are still pending.
+is complete, while activation of content-writing routines is still pending.
 
 ## OAuth browser form compatibility
 
