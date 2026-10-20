@@ -24,6 +24,10 @@ and D1 confirms an active refresh-token session. The connected MCP tools were
 verified from ChatGPT, and the welcome message was confirmed sent to Telegram.
 On 2026-10-20, ChatGPT authored and scheduled 33 alphabet lessons and 33 quizzes
 through 2026-11-21. See the saved curriculum in `content/alphabet-2026-10-20.json`.
+All 33 pending alphabet lessons were subsequently updated with distinct image
+paths. The Worker serves the corresponding PNGs through Static Assets and sends
+photo lessons with `sendPhoto`. Existing publication times and quizzes were
+preserved. Type checking and all 28 tests pass for the image release.
 
 Keep MCP_GROUP_TOKEN in Infisical and use it only on this backend's OAuth consent
 page. It is not a Worker environment variable. Credentials and generated token

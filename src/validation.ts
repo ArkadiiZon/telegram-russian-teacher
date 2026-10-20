@@ -8,7 +8,12 @@ export const configPatch = z.object({
   timezone: timezone.optional(), lesson_time: localTime.optional(), quiz_time: localTime.optional(),
   level: z.enum(['A1', 'A2', 'B1']).optional(), enabled: z.boolean().optional()
 }).strict().refine(value => Object.keys(value).length > 0, 'Empty patch');
-export const lessonContent = z.object({ title: z.string().min(1).max(120), text: z.string().min(1).max(3400) }).strict();
+export const lessonContent = z.object({
+  title: z.string().min(1).max(120), text: z.string().min(1).max(3400),
+  // Only our deployed, public teaching cards; arbitrary remote media is not accepted.
+  image_path: z.string().regex(/^\/media\/letters\/letter-(?:0[1-9]|[12][0-9]|3[0-3])\.png$/).optional()
+}).strict().refine(value => !value.image_path || [...`🇷🇺 ${value.title}\n\n${value.text}`].length <= 1024,
+  'Photo lesson caption must fit Telegram’s 1024-character limit');
 export const quizContent = z.object({
   question: z.string().min(1).max(240),
   options: z.array(z.string().min(1).max(80)).length(4),

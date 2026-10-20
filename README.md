@@ -4,6 +4,10 @@ A **TypeScript + NestJS** backend on **Cloudflare Workers + D1**. ChatGPT is the
 
 **There is no OpenAI API integration or API key in this version.** No autonomous content generation runs on the backend. ChatGPT routines can prepare lessons in advance; BullMQ on the ops box triggers Cloudflare to deliver content already saved in D1.
 
+The 33-day alphabet curriculum includes illustrated letter cards. Each photo
+lesson is sent as one Telegram image with its complete Spanish lesson caption.
+See [media and profile artwork](docs/media.md) for files and regeneration.
+
 ## Architecture
 
 ```mermaid
@@ -206,6 +210,13 @@ Every tool requires `group_id`, checks its match with the credential, and checks
 ```
 
 For `kind: "quiz"`, content has `question`, exactly four `options`, zero-based `correct_option` (0–3), and `explanation` in Spanish. Explanation is a single line. Native quizzes stay open for ten minutes and are non-anonymous so answers can be scored. Bounds are validated before saving or posting. There is no arbitrary Telegram API proxy.
+
+Lesson content optionally accepts `image_path`, such as
+`/media/letters/letter-01.png`. Only deployed cards `letter-01.png` through
+`letter-33.png` are allowed. With an image, title + text must fit the complete
+1024-character photo caption; otherwise validation rejects it. Without an image,
+the existing text limits apply. Refresh MCP tools in your client after upgrading
+to discover the optional field.
 
 Timestamps require an explicit UTC offset or `Z`. Schedule at most 366 days ahead. Reuse an idempotency key for retries; it identifies one lesson within one group. A different topic, kind, or content with the same key is rejected. Existing schedules keep their absolute timestamps when group timezone preferences change.
 

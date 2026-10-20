@@ -120,6 +120,29 @@ test('webhook authenticates before parsing and deduplicates quiz results', async
   const progress = JSON.parse((await (await rpc('get_progress', { group_id: group })).json()).result.content[0].text);
   assert.equal(progress.answered, 1); assert.equal(progress.correct, 1);
 });
+test('photo lessons validate local paths and caption bounds, and send one photo operation', async () => {
+  const content = { title: 'А а', text: 'Арбуз — sandía.', image_path: '/media/letters/letter-01.png' };
+  const args = { group_id: group, kind: 'lesson', topic: 'letter photo', publish_at: new Date().toISOString(), idempotency_key: 'test:photo:one', content };
+  for (const invalid of [
+    { ...content, image_path: 'https://evil.example/tracking.png' },
+    { ...content, image_path: '/media/letters/../secret.png' },
+    { ...content, image_path: '/media/letters/letter-34.png' },
+    { ...content, text: 'a'.repeat(1024) }
+  ]) {
+    const result = await (await rpc('schedule_lesson', { ...args, content: invalid })).json();
+    assert.ok(result.error || result.result?.isError, JSON.stringify(result));
+  }
+  const result = (await (await rpc('schedule_lesson', args)).json()).result;
+  assert.ok(!result.isError, JSON.stringify(result));
+  const id = JSON.parse(result.content[0].text).id;
+  mocks.get('https://api.telegram.org').intercept({ path: '/bot123456:TEST_TOKEN/sendPhoto', method: 'POST' })
+    .reply(200, { ok: true, result: { message_id: 77, date: 1, chat: { id: Number(group), type: 'group' }, photo: [] } });
+  await tick();
+  const saved = await db.prepare('SELECT status,message_id,content FROM lessons WHERE id=?').bind(id).first();
+  assert.equal(saved.status, 'sent'); assert.equal(saved.message_id, 77);
+  assert.equal(JSON.parse(saved.content).image_path, content.image_path);
+  mocks.assertNoPendingInterceptors();
+});
 test('interrupted delivery is quarantined instead of automatically reposted', async () => {
   await db.prepare(`UPDATE lessons SET status='sending', lease_until=0 WHERE id=?`).bind(lessonId).run();
   await tick();

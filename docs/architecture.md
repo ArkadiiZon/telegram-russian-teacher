@@ -17,7 +17,9 @@ flowchart TD
   end
   Bull -->|HTTPS bearer: one group, lessons:post| Tick
   Store <--> D1[(Cloudflare D1)]
-  Scheduler -->|sendMessage / sendPoll| Telegram[Telegram group]
+  Scheduler -->|sendMessage / sendPhoto / sendPoll| Telegram[Telegram group]
+  Assets[Cloudflare static assets: public teaching PNGs] -->|Telegram fetches the selected card| Telegram
+  Cards[Editable SVG card sources + renderer] --> Assets
   Telegram -->|poll_answer / commands| Hook
   Ops[Infisical on Tailscale ops box] -->|Sync selected settings at deployment| Secrets[Cloudflare Worker secrets]
   Secrets --> Worker
@@ -25,6 +27,18 @@ flowchart TD
 ```
 
 There is no model API in this implementation. Tailscale is used to reach Infisical from the deployment machine, not by the running Worker. MCP account permissions and ChatGPT scheduled-task support are separate from BullMQ delivery. Cloudflare Cron Triggers are disabled. Redis holds recurring trigger jobs, while D1 is the source of truth for authored content, publication times, delivery leases, and results. The Cloudflare Worker never connects to Redis or to the private ops network. See [scheduler operations](scheduler.md).
+
+## Lesson images
+
+Public teaching cards are deployed with Workers Static Assets from `public/`.
+The D1 lesson content JSON stores an optional allowlisted `image_path`; no schema
+migration or new secrets are needed. The scheduler resolves it against the
+configured public base URL and uses one `sendPhoto` call with the full lesson
+caption. Captions are validated at 1024 Unicode characters including the title.
+Arbitrary external URLs and paths are rejected. Photo sends use the same atomic
+claims and uncertain-delivery protection as text lessons. Quizzes remain native
+Telegram polls. Group-private data and credentials must never enter public assets.
+See [media operations](media.md).
 
 ## Database relationships
 

@@ -8,6 +8,8 @@ month. The complete 33-letter alphabet is scheduled from 2026-10-20 through
 Europe/Madrid. Explicit timestamps account for the 2026-10-25 clock change.
 Full Spanish teaching content is saved in
 `content/alphabet-2026-10-20.json` and already stored in production through MCP.
+All 33 lesson entries also include their public illustrated letter card via
+`image_path`. The scheduler sends the photo with the complete lesson caption.
 Keys use `routine:YYYY-MM-DD:lesson` and `routine:YYYY-MM-DD:quiz`.
 
 These saved entries are delivered by BullMQ without a daily model call or an

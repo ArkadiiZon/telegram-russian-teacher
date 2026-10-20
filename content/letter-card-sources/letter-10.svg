@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+<rect width="1080" height="1080" fill="#111f32"/>
+<circle cx="1030" cy="0" r="300" fill="#1b3545"/>
+<text x="74" y="98" fill="#83d9ce" font-family="Arial" font-size="24" font-weight="700" letter-spacing="3">APRENDIENDO RUSO</text>
+<text x="1000" y="98" text-anchor="end" fill="#f5d68a" font-family="Arial" font-size="25">10 / 33</text>
+<text x="70" y="173" fill="#c2cbd5" font-family="Arial" font-size="20" letter-spacing="3">UNA LETRA CADA DÍA</text>
+<text x="64" y="480" fill="#fff5e6" font-family="Arial" font-size="300" font-weight="700">И и</text>
+<circle cx="830" cy="355" r="143" fill="#f6cb79"/>
+<g transform="translate(737 262) scale(7.7)" fill="none" stroke="#19384a" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2-2 8L3 22 14 8Z"/><path d="m16 5 1-1"/></g>
+<rect x="70" y="560" width="940" height="305" rx="32" fill="#fff5e6"/>
+<text x="112" y="624" fill="#576477" font-family="Arial" font-size="20" letter-spacing="2">PALABRA DE HOY</text>
+<text x="112" y="724" fill="#172b41" font-family="Arial" font-size="84" font-weight="700">игла́</text>
+<text x="112" y="806" fill="#a14834" font-family="Arial" font-size="40">aguja</text>
+<text x="74" y="934" fill="#d5dfeb" font-family="Arial" font-size="26">Mira · Pronuncia · Escribe</text>
+<text x="74" y="995" fill="#83d9ce" font-family="Arial" font-size="22">La tilde marca el acento para estudiar.</text>
+</svg>

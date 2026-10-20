@@ -44,7 +44,11 @@ export class Scheduler {
       const api = new Api(this.env.TELEGRAM_BOT_TOKEN, { timeoutSeconds: 15 });
       if (claimed.kind === 'lesson') {
         const lesson = lessonContent.parse(parsed);
-        const message = await api.sendMessage(group.id, `🇷🇺 ${lesson.title}\n\n${lesson.text}`);
+        const caption = `🇷🇺 ${lesson.title}\n\n${lesson.text}`;
+        // One Telegram operation keeps photo + full lesson together and avoids partial two-message delivery.
+        const message = lesson.image_path
+          ? await api.sendPhoto(group.id, new URL(lesson.image_path, this.env.PUBLIC_BASE_URL).href, { caption })
+          : await api.sendMessage(group.id, caption);
         await db.prepare(`UPDATE lessons SET status = 'sent', message_id = ?, lease_until = NULL, error_code = NULL
           WHERE id = ? AND attempts = ?`).bind(message.message_id, id, claimed.attempts).run();
       } else {
