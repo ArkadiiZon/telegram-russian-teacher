@@ -148,7 +148,8 @@ test('OAuth form keeps a same-origin browser POST while rejecting null and forei
   const response = await mf.dispatchFetch(`${base}/oauth/authorize?${params}`);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('referrer-policy'), 'same-origin');
-  assert.match(response.headers.get('content-security-policy'), /form-action 'self'/);
+  assert.equal(response.headers.get('content-security-policy'),
+    `default-src 'none'; form-action 'self' ${callback}; frame-ancestors 'none'; base-uri 'none'`);
   const html = await response.text();
   const signed = /name="consent" value="([^"]+)"/.exec(html)?.[1];
   assert.ok(signed);

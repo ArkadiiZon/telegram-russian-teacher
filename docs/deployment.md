@@ -80,3 +80,9 @@ The former direct remote MCP configuration is kept as
 `config/mcp.portable.example.json` for a separate portable distribution, outside
 the installed private plugin. Do not add it back to the private package alongside
 the registered binding: that would introduce two independent connection paths.
+
+The consent document's CSP `form-action` also allows the exact validated callback
+origin and path. Chromium can apply this policy to the redirect following the
+POST, so a self-only form policy can accept approval but prevent the return to
+ChatGPT. The callback still has to match the configured allowlist exactly;
+unrelated origins and callback paths remain disallowed.

@@ -46,9 +46,14 @@ export class OAuth {
     const parsed = this.validate(Object.fromEntries(new URL(request.url).searchParams));
     const payload = b64url(new TextEncoder().encode(JSON.stringify({ parameters: parsed, exp: Date.now() + 300_000 })));
     const signed = `${payload}.${await this.signature(payload)}`;
+    // Chromium applies form-action to redirects too. Permit only the already
+    // validated callback path, while keeping unrelated form destinations blocked.
+    const callback = new URL(parsed.redirect_uri);
+    const callbackSource = `${callback.origin}${callback.pathname}`.replace(/[;'"\s]/g,
+      char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
     return new Response(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Conectar profesor de ruso</title><h1>Conectar ChatGPT al profesor de ruso</h1><p>Permisos solicitados: ${escape(parsed.scope)}</p><p>Introduce tu token de acceso del grupo. La conexión quedará limitada a ese grupo y a sus permisos. Usa únicamente el token generado para esta aplicación.</p><form method="post" action="/oauth/authorize"><input type="hidden" name="consent" value="${escape(signed)}"><label>Token del grupo <input type="password" name="group_token" required autocomplete="off"></label><button type="submit">Autorizar conexión</button></form></html>`, {
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
-        'content-security-policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'", 'referrer-policy': 'same-origin' }
+        'content-security-policy': `default-src 'none'; form-action 'self' ${callbackSource}; frame-ancestors 'none'; base-uri 'none'`, 'referrer-policy': 'same-origin' }
     });
   }
   async approve(request: Request) {
