@@ -7,7 +7,8 @@
 - Delivery scheduler: BullMQ + dedicated Redis on `zonbook-ops`, in `~/russian-teacher`
 - Cloudflare Cron Triggers: disabled
 - Infisical project: `f51da42d-632d-4516-9a98-3fb013479426`, `prod`, `/`
-- Private plugin: https://chatgpt.com/plugins/plugins_6ad684df906c8191812b07a6caabd2a1
+- Registered web MCP connection: https://chatgpt.com/plugins/plugin_asdk_app_6ad68a0fda2c8191bac769c103927f79
+- Private teaching plugin (0.1.2): https://chatgpt.com/plugins/plugins_6ad684df906c8191812b07a6caabd2a1
 
 The production D1 schema is applied, all six Cloudflare runtime settings are synchronized
 from Infisical, and the Telegram webhook is registered. Live MCP initialization,
@@ -65,3 +66,17 @@ rejected; neither the callback allowlist nor authentication has been relaxed.
 The initial `invalid_origin` error was reproduced with a dummy credential before
 this fix. See the browser compatibility notes in
 [MDN Referrer-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy#effect_on_the_origin_header).
+
+## Shared web MCP connection
+
+The private teaching plugin now references the registered web App
+`asdk_app_6ad68a0fda2c8191bac769c103927f79` through `.app.json`. Both its portable
+manifest and compatibility manifest point at that file. This reuses the web
+OAuth connection in ChatGPT and avoids a second bundled desktop MCP connection.
+The teaching skill, default prompts, plugin ID, ownership, and private visibility
+are preserved. A saved plugin release does not prove completed OAuth consent.
+
+The former direct remote MCP configuration is kept as
+`config/mcp.portable.example.json` for a separate portable distribution, outside
+the installed private plugin. Do not add it back to the private package alongside
+the registered binding: that would introduce two independent connection paths.

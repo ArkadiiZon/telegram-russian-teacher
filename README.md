@@ -249,3 +249,15 @@ npm run admin -- retry LESSON_UUID --checked-telegram --remote
 - `docs/architecture.md`: implementation and schema diagrams
 
 The CI workflow checks TypeScript, builds the Worker, runs isolated integration tests, and audits production dependencies. Deployment remains an explicit operator command.
+
+## Private ChatGPT plugin package
+
+`plugin/russian-teacher` contains the teaching skill and a verified `.app.json`
+reference to the existing registered ChatGPT MCP App. It shares that App's OAuth
+connection; installation, connection approval, and routine creation are separate
+steps. Both manifests retain the same private teaching plugin identity and prompts.
+See [production connection details](docs/deployment.md).
+
+`config/mcp.portable.example.json` preserves the direct HTTPS MCP configuration
+for a separate portable package. It is not part of the private teaching plugin.
+No credentials are packaged in either configuration.
